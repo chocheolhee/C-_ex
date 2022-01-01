@@ -4,6 +4,8 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 const MongoClient = require("mongodb").MongoClient;
 app.set("view engine", "ejs");
+const methodoverride = require("method-override");
+app.use(methodoverride("_method"));
 
 //미들웨어
 app.use("/public", express.static("public"));
@@ -62,9 +64,11 @@ app.get("/list", function (req, res) {
         });
 });
 
+//ajax로 data : { _id : e.target.dataset.id}로 보냈기 때문에 server.js deletOne(req.body)에
+// 쿼리문이 들어간다
 app.delete("/delete", function (req, res) {
-    console.log(req.body);
-    req.body._id = parseInt(req.body._id);
+    console.log(req.body); // data : { _id : "1"}이라는 데이터가 넘어온다. (req.body. + (지금보낸 data)_id ) = "1"
+    req.body._id = parseInt(req.body._id); // 여기서 req.body._id ="1" 인 값을 숫자 1로 변환해줘야 DB에서 삭제가 가능해진다
     db.collection("post").deleteOne(req.body, function (err, result) {
         console.log("삭제완료");
         res.status(200).send({ message: "성공했습니다" });
@@ -75,5 +79,19 @@ app.get("/detail/:id", function (req, res) {
     db.collection("post").findOne({ _id: parseInt(req.params.id) }, function (err, result) {
         console.log(result);
         res.render("detail.ejs", { data: result });
+    });
+});
+
+app.get("/edit/:id", function (req, res) {
+    db.collection("post").findOne({ _id: parseInt(req.params.id) }, function (err, result) {
+        console.log(result);
+        res.render("edit.ejs", { post: result });
+    });
+});
+
+app.put("/edit", function (req, res) {
+    db.collection("post").updateOne({ _id: parseInt(req.body.id) }, { $set: { 제목: req.body.title, 날짜: req.body.date } }, function (err, result) {
+        console.log("수정완료");
+        res.redirect("/list");
     });
 });
