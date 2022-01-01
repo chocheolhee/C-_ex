@@ -5,6 +5,9 @@ app.use(express.urlencoded({ extended: true }));
 const MongoClient = require("mongodb").MongoClient;
 app.set("view engine", "ejs");
 
+//미들웨어
+app.use("/public", express.static("public"));
+
 var db;
 MongoClient.connect("mongodb+srv://admin:qwer1234@cluster0.ry1xo.mongodb.net/todoapp?retryWrites=true&w=majority", { useUnifiedTopology: true }, function (err, client) {
     if (err) return console.log(err);
@@ -24,10 +27,10 @@ MongoClient.connect("mongodb+srv://admin:qwer1234@cluster0.ry1xo.mongodb.net/tod
 // });
 
 app.get("/", function (req, res) {
-    res.sendFile(__dirname + "/index.html");
+    res.render("index.ejs");
 });
 app.get("/write", function (req, res) {
-    res.sendFile(__dirname + "/write.html");
+    res.render("write.ejs");
 });
 
 app.post("/add", function (req, res) {
