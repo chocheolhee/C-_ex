@@ -6,12 +6,19 @@ const MongoClient = require("mongodb").MongoClient;
 app.set("view engine", "ejs");
 const methodoverride = require("method-override");
 app.use(methodoverride("_method"));
+const passport = require("passport");
+const LocalStrategy = require("passport-local").Strategy;
+const session = require("express-session");
+require("dotenv").config(); // 환경변수 사용
 
 //미들웨어
 app.use("/public", express.static("public"));
+app.use(session({ secret: "비밀코드", resave: true, saveUninitialized: false }));
+app.use(passport.initialize());
+app.use(passport.session());
 
 var db;
-MongoClient.connect("mongodb+srv://admin:qwer1234@cluster0.ry1xo.mongodb.net/todoapp?retryWrites=true&w=majority", { useUnifiedTopology: true }, function (err, client) {
+MongoClient.connect(process.env.DB_URL, { useUnifiedTopology: true }, function (err, client) {
     if (err) return console.log(err);
     db = client.db("todoapp");
 
@@ -19,7 +26,7 @@ MongoClient.connect("mongodb+srv://admin:qwer1234@cluster0.ry1xo.mongodb.net/tod
     //     console.log("저장완료");
     // });
 
-    app.listen(8080, function () {
+    app.listen(process.env.PORT, function () {
         console.log("listening on 8080");
     });
 });
@@ -93,5 +100,75 @@ app.put("/edit", function (req, res) {
     db.collection("post").updateOne({ _id: parseInt(req.body.id) }, { $set: { 제목: req.body.title, 날짜: req.body.date } }, function (err, result) {
         console.log("수정완료");
         res.redirect("/list");
+    });
+});
+
+app.get("/login", function (req, res) {
+    res.render("login.ejs");
+});
+
+app.get("/fail", function (req, res) {
+    res.send("로그인 실패");
+});
+
+app.get("/logout", function (req, res) {
+    req.logout();
+    res.redirect("/");
+});
+
+app.post(
+    "/login",
+    passport.authenticate("local", {
+        failureRedirect: "/fail",
+    }),
+    function (req, res) {
+        res.redirect("/");
+    }
+);
+
+app.get("/mypage", 로그인했니, function (req, res) {
+    console.log("req.user");
+    res.render("mypage.ejs", { 사용자: req.user });
+});
+
+function 로그인했니(req, res, next) {
+    if (req.user) {
+        next();
+    } else {
+        res.send("로그인 해주세요");
+    }
+}
+
+passport.use(
+    new LocalStrategy(
+        {
+            usernameField: "id",
+            passwordField: "pw",
+            session: true,
+            passReqToCallback: false,
+        },
+        function (입력한아이디, 입력한비번, done) {
+            //console.log(입력한아이디, 입력한비번);
+            db.collection("login").findOne({ id: 입력한아이디 }, function (에러, 결과) {
+                if (에러) return done(에러);
+                // 중요한 부분
+                if (!결과) return done(null, false, { message: "존재하지않는 아이디요" }); // done(서버에러, 성공시 사용자 DB데이터, { 에러메세지 넣는 부분})
+                if (입력한비번 == 결과.pw) {
+                    return done(null, 결과);
+                } else {
+                    return done(null, false, { message: "비번틀렸어요" });
+                }
+            });
+        }
+    )
+);
+
+passport.serializeUser(function (user, done) {
+    done(null, user.id);
+});
+
+passport.deserializeUser(function (아이디, done) {
+    db.collection("login").findOne({ id: 아이디 }, function (err, result) {
+        done(null, result);
     });
 });
