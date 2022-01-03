@@ -35,6 +35,7 @@
                     <p>글번호 : <%= posts[i]._id %></p>
                     <h4>제목 : <%= posts[i].제목 %></h4>
                     <p>날짜 : <%= posts[i].날짜 %></p>
+                    <button type="button" class="btn btn-primary edit" data-id="<%= posts[i]._id %>">수정</button>
                     <button type="button" class="btn btn-danger delete" data-id="<%= posts[i]._id %>">삭제</button>
                 </li>
                 <% } %>
@@ -67,6 +68,11 @@
                         console.log(xhr, textStatus, errorThrown);
                     });
             });
+
+            $('.edit').click(function(e) {
+                var 수정글 = e.target.dataset.id
+                window.location.href='/edit/' + 수정글
+            })
         </script>
     </body>
 </html>
