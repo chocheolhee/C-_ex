@@ -1,5 +1,4 @@
 const express = require("express");
-const req = require("express/lib/request");
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 const MongoClient = require("mongodb").MongoClient;
@@ -35,6 +34,19 @@ MongoClient.connect(process.env.DB_URL, { useUnifiedTopology: true }, function (
 //     res.send("뷰티용품사세요");
 // });
 
+//Router 기능개발
+app.use("/shop", require("./routes/shop.js"));
+
+app.use("/board/sub", require("./routes/board.js"));
+
+// app.get('/board/sub/sports', function(요청, 응답){
+//     응답.send('스포츠 게시판');
+//  });
+
+//  app.get('/board/sub/game', function(요청, 응답){
+//     응답.send('게임 게시판');
+//  });
+
 app.get("/", function (req, res) {
     res.render("index.ejs");
 });
@@ -48,8 +60,9 @@ app.post("/add", function (req, res) {
     db.collection("counter").findOne({ name: "게시물갯수" }, function (err, result) {
         console.log(result.totalPost);
         var 총게시물갯수 = result.totalPost;
+        var 저장할거 = { _id: 총게시물갯수 + 1, 작성자: req.user._id, 제목: req.body.title, 날짜: req.body.date };
 
-        db.collection("post").insertOne({ _id: 총게시물갯수 + 1, 제목: req.body.title, 날짜: req.body.date }, function (에러, 결과) {
+        db.collection("post").insertOne(저장할거, function (에러, 결과) {
             console.log("저장완료");
             // counter라는 콜렉션에 있는 totalPost 라는 항목도 1 증가시켜야 함
             db.collection("counter").updateOne({ name: "게시물갯수" }, { $inc: { totalPost: 1 } }, function (err, result) {
@@ -71,12 +84,40 @@ app.get("/list", function (req, res) {
         });
 });
 
+// 검색기능 기능개발
+app.get("/search", (req, res) => {
+    var 검색조건 = [
+        {
+            $search: {
+                index: "titleSearch",
+                text: {
+                    query: req.query.value,
+                    path: "제목", // 제목날짜 둘다 찾고 싶으면 ['제목', '날짜']
+                },
+            },
+        },
+        // 검색결과 필터
+        { $sort: { _id: 1 } },
+        { $project: { 제목: 1, 날짜: 1, _id: 1, score: { $meta: "searchScore" } } },
+    ];
+    db.collection("post")
+        .aggregate(검색조건)
+        .toArray((err, result) => {
+            console.log(result);
+            res.render("search.ejs", { posts: result });
+        });
+});
+
 //ajax로 data : { _id : e.target.dataset.id}로 보냈기 때문에 server.js deletOne(req.body)에
 // 쿼리문이 들어간다
 app.delete("/delete", function (req, res) {
     console.log(req.body); // data : { _id : "1"}이라는 데이터가 넘어온다. (req.body. + (지금보낸 data)_id ) = "1"
     req.body._id = parseInt(req.body._id); // 여기서 req.body._id ="1" 인 값을 숫자 1로 변환해줘야 DB에서 삭제가 가능해진다
-    db.collection("post").deleteOne(req.body, function (err, result) {
+    var 삭제할데이터 = { _id: req.body._id, 작성자: req.user._id };
+    db.collection("post").deleteOne(삭제할데이터, function (err, result) {
+        if (result) {
+            console.log(result);
+        }
         console.log("삭제완료");
         res.status(200).send({ message: "성공했습니다" });
     });
@@ -170,5 +211,11 @@ passport.serializeUser(function (user, done) {
 passport.deserializeUser(function (아이디, done) {
     db.collection("login").findOne({ id: 아이디 }, function (err, result) {
         done(null, result);
+    });
+});
+
+app.post("/register", function (req, res) {
+    db.collection("login").insertOne({ id: req.body.id, pw: req.body.pw }, function (err, result) {
+        res.redirect("/");
     });
 });
