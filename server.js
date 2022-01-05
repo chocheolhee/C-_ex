@@ -10,6 +10,19 @@ const LocalStrategy = require("passport-local").Strategy;
 const session = require("express-session");
 require("dotenv").config(); // 환경변수 사용
 
+//multer 세팅
+let multer = require("multer");
+var storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, "./public/image");
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname);
+    },
+});
+
+var upload = multer({ storage: storage });
+
 //미들웨어
 app.use("/public", express.static("public"));
 app.use(session({ secret: "비밀코드", resave: true, saveUninitialized: false }));
@@ -73,6 +86,19 @@ app.post("/add", function (req, res) {
             res.redirect("/list");
         });
     });
+});
+
+//이미지 파일 업로드 API
+app.get("/upload", function (req, res) {
+    res.render("upload.ejs");
+});
+
+app.post("/upload", upload.single("profile"), function (req, res) {
+    res.send("업로드완료");
+});
+
+app.get("/image/:imageName", function (req, res) {
+    res.sendFile(__dirname + "/public/image/" + req.params.imageName);
 });
 
 app.get("/list", function (req, res) {
